@@ -239,6 +239,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set up bio toggle functionality
     setupBioToggle();
+    
+    // Initialize with default favicon
+    createDynamicFavicon();
+    
+    // Update favicon if CSS variables are changed later (e.g., from arena description)
+    const observer = new MutationObserver(function() {
+        createDynamicFavicon();
+    });
+    
+    // Watch for style attribute changes on the document root
+    observer.observe(document.documentElement, { 
+        attributes: true,
+        attributeFilter: ['style']
+    });
 });
 
 // Toggle bio functionality
@@ -267,4 +281,32 @@ function setupBioToggle() {
         }
     }, 1000); // Wait 1 second for content to load
 }
+
+// Favicon
+function createDynamicFavicon() {
+    // Get the --bg-color-left value from CSS
+    const bgColorLeft = getComputedStyle(document.documentElement).getPropertyValue('--bg-color-left').trim();
+    
+    // Create SVG content - a simple square with the background color
+    const svgContent = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+            <rect width="32" height="32" fill="${bgColorLeft}"/>
+        </svg>
+    `;
+    
+    // Convert the SVG to a data URL
+    const faviconUrl = 'data:image/svg+xml;base64,' + btoa(svgContent);
+    
+    // Create or update the favicon link element
+    let favicon = document.querySelector('link[rel="icon"]');
+    if (!favicon) {
+        favicon = document.createElement('link');
+        favicon.rel = 'icon';
+        document.head.appendChild(favicon);
+    }
+    
+    // Set the favicon href to the SVG data URL
+    favicon.href = faviconUrl;
+}
+
 
