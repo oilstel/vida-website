@@ -49,7 +49,6 @@ header button {
     color: var(--text-color);
     text-decoration: none;
     padding: 0;
-    margin-left: 3px;
 }
 #header-color-container {
     grid-column: 1 / 2;
