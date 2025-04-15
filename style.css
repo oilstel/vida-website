@@ -1,3 +1,15 @@
+:root {
+    --ff-serif: 'EB Garamond', serif;
+    --ff-sans: 'IBM Plex Sans', sans-serif;
+    --font-size: 14px;
+    --line-height: 1.5;
+    --bg-color: #000;
+    --bg-color-left: #053627;
+    --text-color: #9599DF;
+    --rule-color: #140CFB;
+}
+
+/* Basics */
 *, *:before, *:after { box-sizing: border-box; }
 body {
     font-family: var(--ff-sans);
@@ -9,8 +21,6 @@ body {
     font-size: var(--font-size);
     line-height: var(--line-height);
 }
-
-/* Basics */
 a {
     color: var(--text-color);
     text-decoration-thickness: 0.5px;
@@ -65,13 +75,14 @@ header button {
     grid-column: 1 / 2;
 }
 
-
+/* Layout */
 main {
     display: grid;
     grid-template-columns: 1fr 1fr;
     min-height: 100dvh;
 }
 
+/* CV */
 #cv-container {
     grid-column: 2 / 3;
     padding: 15px;
@@ -112,6 +123,7 @@ footer {
     padding: 15px;
 }
 
+/* Mobile */
 @media (max-width: 1000px) {
     main {
         display: grid
