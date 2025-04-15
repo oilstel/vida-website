@@ -53,7 +53,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const blockId = element.getAttribute('data-block-id');
         element.innerHTML = '';
         
-        element.innerHTML = block.content_html;
+        if (block.description && block.description.includes('display_as_html: true')) {
+            // Extract content from within <pre><code> tags if they exist
+            let content = block.content_html;
+            if (content.includes('<pre><code>') && content.includes('</code></pre>')) {
+                // Extract the content between <pre><code> and </code></pre>
+                const preContent = content.split('<pre><code>')[1].split('</code></pre>')[0];
+                
+                // Unescape HTML entities (convert &lt; to <, &gt; to >, etc.)
+                const unescapedContent = unescapeHtml(preContent);
+                
+                element.innerHTML = unescapedContent;
+            } else {
+                element.innerHTML = content;
+            }
+        } else {
+            element.innerHTML = block.content_html;
+        }
+    }
+    
+    // Helper function to unescape HTML entities
+    function unescapeHtml(html) {
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = html;
+        return textarea.value;
     }
     
     async function fetchArenaChannel() {
@@ -213,5 +236,35 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize
     populateBlockElements();
     fetchArenaChannel();
+    
+    // Set up bio toggle functionality
+    setupBioToggle();
 });
+
+// Toggle bio functionality
+function setupBioToggle() {
+    // We need to wait a bit for the content to be loaded from Are.na
+    setTimeout(() => {
+        const toggleButton = document.getElementById('toggle-expanded-bio');
+        const expandedBio = document.getElementById('expanded-bio');
+        
+        if (toggleButton && expandedBio) {
+            // Initially hide the expanded bio
+            expandedBio.style.display = 'none';
+            
+            // Add click event to toggle button
+            toggleButton.addEventListener('click', function() {
+                if (expandedBio.style.display === 'none') {
+                    // Expand
+                    expandedBio.style.display = 'block';
+                    toggleButton.textContent = '−'; // Em dash for minus
+                } else {
+                    // Collapse
+                    expandedBio.style.display = 'none';
+                    toggleButton.textContent = '+';
+                }
+            });
+        }
+    }, 1000); // Wait 1 second for content to load
+}
 
