@@ -183,7 +183,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         imagesContainer.innerHTML = '';
         
-        imageBlocks.forEach(block => {
+        // Reverse the order of image blocks
+        const reversedBlocks = [...imageBlocks].reverse();
+        
+        reversedBlocks.forEach(block => {
             const figure = document.createElement('figure');
             figure.setAttribute('data-block-id', block.id);
             
