@@ -43,10 +43,14 @@ header {
     top: 0;
     z-index: 100;
     padding: 15px;
-    margin-top: 50dvh;
     grid-column: 1 / 2;
     grid-row: 1 / 1;
-    width: 60%
+    width: 60%;
+    display: flex;
+    flex-flow: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    height: 95dvh;
 }
 header button {
     display: inline-block;
@@ -112,6 +116,10 @@ main {
     padding: 15px;
     justify-content: center;
     align-items: flex-end;
+    display: none;
+}
+#images figure img:hover ~ figcaption {
+    display: flex;
 }
 #images figure figcaption p {
     max-width: 300px;
@@ -145,6 +153,9 @@ footer {
     main, #images figure {
         grid-template-columns: 1fr;
         margin-bottom: 100px;
+    }
+    #images figure figcaption {
+        display: block;
     }
     #images figure figcaption p {
         max-width: 100%;
