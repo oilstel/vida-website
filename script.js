@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 element.innerHTML = content;
             }
         } else {
-            element.innerHTML = block.content_html;
+            element.innerHTML = unescapeHtml(block.content_html);
         }
     }
     
@@ -246,6 +246,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize with default favicon
     createDynamicFavicon();
     
+    // Make all links open external
+    setTimeout(() => {
+        document.querySelectorAll('a').forEach(link => {
+            link.setAttribute('target', '_blank');
+        });
+    }, 1500); // Wait for content to load
+    
     // Update favicon if CSS variables are changed later (e.g., from arena description)
     const observer = new MutationObserver(function() {
         createDynamicFavicon();
@@ -311,5 +318,3 @@ function createDynamicFavicon() {
     // Set the favicon href to the SVG data URL
     favicon.href = faviconUrl;
 }
-
-
