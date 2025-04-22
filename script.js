@@ -246,6 +246,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize with default favicon
     createDynamicFavicon();
     
+    // Setup sticky header
+    setupStickyHeader();
+    
     // Make all links open external
     setTimeout(() => {
         document.querySelectorAll('a').forEach(link => {
@@ -318,3 +321,88 @@ function createDynamicFavicon() {
     // Set the favicon href to the SVG data URL
     favicon.href = faviconUrl;
 }
+
+// Simplified sticky header implementation
+function setupStickyHeader() {
+    // Get the necessary elements
+    const bioContainer = document.getElementById('bio-container');
+    const fixedHeader = document.getElementById('fixed-header');
+    const headerColorContainer = document.getElementById('header-color-container');
+    
+    // Exit if elements don't exist
+    if (!bioContainer || !fixedHeader || !headerColorContainer) return;
+    
+    // Store original parent
+    const originalParent = bioContainer.parentNode;
+    
+    // Track the scroll position where we should switch
+    let switchPoint = 0;
+    
+    // Match fixed header width to header-color-container
+    function updateFixedHeaderWidth() {
+        const containerWidth = getComputedStyle(headerColorContainer).width;
+        fixedHeader.style.width = containerWidth;
+    }
+    
+    // More accurately calculate the switch point
+    function calculateSwitchPoint() {
+        // Only if bio is in original position
+        if (bioContainer.parentNode === originalParent) {
+            // Get actual position from top of document
+            let element = bioContainer;
+            let top = 0;
+            
+            do {
+                top += element.offsetTop || 0;
+                element = element.offsetParent;
+            } while (element);
+            
+            switchPoint = top;
+        }
+    }
+    
+    // Initialize
+    calculateSwitchPoint();
+    updateFixedHeaderWidth();
+    
+    // Simple scroll handler with more precise comparison
+    window.addEventListener('scroll', function() {
+        const scrollY = window.scrollY || window.pageYOffset;
+        
+        // Use the absolute comparison - when bio should be at top of view
+        if (scrollY >= switchPoint) {
+            // Only move if it's not already in the fixed header
+            if (bioContainer.parentNode !== fixedHeader) {
+                fixedHeader.appendChild(bioContainer);
+            }
+        } else {
+            // Only move if it's not already in the original parent
+            if (bioContainer.parentNode !== originalParent) {
+                originalParent.appendChild(bioContainer);
+                
+                // Recalculate after putting back in original position
+                setTimeout(calculateSwitchPoint, 10);
+            }
+        }
+    });
+    
+    // Update width and recalculate switch point when window is resized
+    window.addEventListener('resize', function() {
+        updateFixedHeaderWidth();
+        
+        // Reset to original position to get accurate measurements
+        if (bioContainer.parentNode !== originalParent) {
+            originalParent.appendChild(bioContainer);
+        }
+        
+        // Allow DOM to update before measuring
+        setTimeout(calculateSwitchPoint, 100);
+    });
+    
+    // Do initial check
+    if (window.scrollY >= switchPoint) {
+        fixedHeader.appendChild(bioContainer);
+    }
+}
+
+ 
