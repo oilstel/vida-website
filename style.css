@@ -155,7 +155,7 @@ footer {
 }
 
 /* Mobile */
-@media (max-width: 1000px) {
+@media (max-width: 530px) {
     main {
         display: grid
     }
