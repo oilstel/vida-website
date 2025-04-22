@@ -128,7 +128,7 @@ main {
     grid-template-columns: 1fr 1fr;
 }
 #images figure img {
-    border-bottom: 5px solid var(--rule-color);
+    border-top: 5px solid var(--rule-color);
 }
 #images figure figcaption {
     font-family: var(--ff-serif);
