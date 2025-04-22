@@ -1,7 +1,7 @@
 :root {
     --ff-serif: 'EB Garamond', serif;
     --ff-sans: 'IBM Plex Sans', sans-serif;
-    --font-size: 14px;
+    --font-size: 13px;
     --line-height: 1.5;
     --bg-color: #000;
     --bg-color-left: #053627;
@@ -23,10 +23,14 @@ body {
 }
 a {
     color: var(--text-color);
+    text-decoration: none;
+}
+a:hover {
     text-decoration-thickness: 0.5px;
     text-underline-offset: 2px;
     text-decoration-color: var(--text-color);
     text-decoration-skip-ink: none;
+    text-decoration: underline;
 }
 p:last-child { margin-bottom: 0; }
 p:first-child { margin-top: 0; }
@@ -45,7 +49,6 @@ header {
     padding: 15px;
     grid-column: 1 / 2;
     grid-row: 1 / 1;
-    width: 60%;
     display: flex;
     flex-flow: column;
     align-items: flex-start;
@@ -62,6 +65,9 @@ header.fixed-header {
     background-color: var(--bg-color-left);
     height: auto;
     padding-bottom: 15px;
+}
+#bio-container {
+    width: 60%;
 }
 #bio-container button {
     display: inline-block;
@@ -88,6 +94,12 @@ header.fixed-header {
     height: 100%;
     background-color: var(--bg-color-left);
     grid-column: 1 / 2;
+}
+#bio-container #mini-bio {
+    margin-bottom: 20px;
+}
+#bio-container #expanded-bio {
+    margin-top: 20px;
 }
 
 /* Layout */
