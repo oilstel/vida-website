@@ -137,9 +137,10 @@ main {
     display: flex;
     flex-flow: column wrap;
     padding: 15px;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: flex-end;
     display: none;
+    margin-top: 20%;
 }
 #images figure img:hover ~ figcaption {
     display: flex;
