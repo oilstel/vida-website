@@ -181,10 +181,9 @@ footer {
     }
     main, #images figure {
         grid-template-columns: 1fr;
-        margin-bottom: 100px;
     }
-    #images figure figcaption {
-        display: block;
+    #images figure figcaption, #images figure img:hover ~ figcaption {
+        display: none !important;
     }
     #images figure figcaption p {
         max-width: 100%;
