@@ -178,6 +178,7 @@ footer {
     }
     #cv {
         position: relative;
+        max-width: initial;
     }
     main, #images figure {
         grid-template-columns: 1fr;
