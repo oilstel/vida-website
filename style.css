@@ -112,11 +112,13 @@ main {
 /* CV */
 #cv-container {
     grid-column: 2 / 3;
-    padding: 15px;
 }
 #cv {
-    position: absolute;
+    position: fixed;
     max-width: 25%;
+    overflow-y: auto;
+    height: 100dvh;
+    padding: 15px;
 }
 
 /* Images */
