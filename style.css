@@ -181,6 +181,8 @@ footer {
     #cv {
         position: relative;
         max-width: initial;
+        height: 100%;
+        overflow-y: initial;
     }
     main, #images figure {
         grid-template-columns: 1fr;
