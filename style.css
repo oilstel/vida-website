@@ -142,7 +142,7 @@ main {
     justify-content: flex-start;
     align-items: flex-end;
     display: none;
-    margin-top: 40px;
+    margin-top: 200px;
 }
 #images figure img:hover ~ figcaption {
     display: flex;
