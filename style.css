@@ -11,12 +11,15 @@
 
 /* Basics */
 *, *:before, *:after { box-sizing: border-box; }
+html{
+    background-color: var(--bg-color-left);
+}
 body {
     font-family: var(--ff-sans);
     font-weight: 400;
     margin: 0;
     padding: 0;
-    background-color: var(--bg-color);
+    background-color: var(--bg-color-left);
     color: var(--text-color);
     font-size: var(--font-size);
     line-height: var(--line-height);
@@ -107,6 +110,7 @@ main {
     display: grid;
     grid-template-columns: 1fr 1fr;
     min-height: 100dvh;
+    background-color: var(--bg-color);
 }
 
 /* CV */
