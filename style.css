@@ -121,6 +121,7 @@ main {
     position: fixed;
     max-width: 25%;
     overflow-y: auto;
+    scrollbar-width: none;
     height: 100dvh;
     padding: 15px;
 }
