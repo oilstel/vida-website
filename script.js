@@ -4,6 +4,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const imagesContainer = document.getElementById('images');
     const rightColumn = document.getElementById('right-column');
     
+    // Content baked into the site by scripts/fetch-arena.mjs (run on a schedule
+    // by GitHub Actions). If it can't be loaded, we fall back to the live API.
+    // Adding ?live to the address skips the baked file and loads straight from
+    // Are.na, to preview an edit before the next scheduled update.
+    const useLive = new URLSearchParams(window.location.search).has('live');
+    const bakedData = useLive ? Promise.resolve(null) : fetch('data/arena.json', { cache: 'no-cache' })
+        .then(response => response.ok ? response.json() : null)
+        .catch(() => null);
+    
     // Add loading indicator
     function showLoading(element, message = 'Loading...') {
         if (!element) return;
@@ -85,17 +94,24 @@ document.addEventListener('DOMContentLoaded', function() {
         showLoading(imagesContainer, '');
         
         try {
+            const baked = await bakedData;
+            
             // Get channel information first
-            const channelResponse = await fetch(`${apiBaseUrl}channels/${channelSlug}`, {
-                method: 'GET',
-                headers: { 'Cache-Control': 'no-cache' }
-            });
-            
-            if (!channelResponse.ok) {
-                throw new Error(`Failed to fetch channel: ${channelResponse.status}`);
+            let channelData;
+            if (baked && baked.channel) {
+                channelData = baked.channel;
+            } else {
+                const channelResponse = await fetch(`${apiBaseUrl}channels/${channelSlug}`, {
+                    method: 'GET',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (!channelResponse.ok) {
+                    throw new Error(`Failed to fetch channel: ${channelResponse.status}`);
+                }
+                
+                channelData = await channelResponse.json();
             }
-            
-            const channelData = await channelResponse.json();
             
             // Parse the description for CSS variables
             if (channelData.metadata && channelData.metadata.description) {
@@ -127,6 +143,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         root.style.setProperty('--rule-color', linesColorMatch[1]);
                     }
                 }
+            }
+            
+            if (baked && baked.images) {
+                displayImages(baked.images);
+                return;
             }
             
             // Now fetch all blocks
@@ -203,14 +224,56 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const figcaption = document.createElement('figcaption');
             
-            if (block.description) {
+            if (block.description_html) {
+                // Are.na's rendered markdown (italics, bold, links, paragraphs)
+                const caption = document.createElement('div');
+                caption.className = 'caption';
+                caption.innerHTML = block.description_html;
+                figcaption.appendChild(caption);
+            } else if (block.description) {
                 const p = document.createElement('p');
-                
-                p.innerHTML += block.description;
-                
+                p.className = 'caption';
+                p.textContent = block.description;
                 figcaption.appendChild(p);
             }
             
+            // Captions with links stay open briefly after leaving the image,
+            // so the pointer can travel across to the caption and click.
+            const links = figcaption.querySelectorAll('a');
+            if (links.length) {
+                links.forEach(link => {
+                    link.target = '_blank';
+                    link.rel = 'noopener';
+                });
+
+                let hideTimer;
+                const close = () => {
+                    clearTimeout(hideTimer);
+                    figure.classList.remove('keep-open');
+                };
+
+                img.addEventListener('mouseenter', () => {
+                    document.querySelectorAll('#images figure.keep-open').forEach(f => {
+                        if (f !== figure) f.classList.remove('keep-open');
+                    });
+                    clearTimeout(hideTimer);
+                    figure.classList.add('keep-open');
+                });
+                img.addEventListener('mouseleave', () => {
+                    clearTimeout(hideTimer);
+                    hideTimer = setTimeout(close, 2500);
+                });
+                figcaption.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+                figcaption.addEventListener('mouseleave', close);
+            } else {
+                // Hovering a link-less image closes any caption left open
+                img.addEventListener('mouseenter', () => {
+                    document.querySelectorAll('#images figure.keep-open').forEach(f => {
+                        f.classList.remove('keep-open');
+                    });
+                });
+            }
+
             figure.appendChild(img);
             figure.appendChild(figcaption);
             imagesContainer.appendChild(figure);
@@ -219,6 +282,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Helper function to get a specific block by ID
     async function getBlockById(blockId) {
+        const baked = await bakedData;
+        if (baked && baked.blocks && baked.blocks[blockId]) {
+            return baked.blocks[blockId];
+        }
+        
         try {
             const response = await fetch(`${apiBaseUrl}blocks/${blockId}`, {
                 method: 'GET',

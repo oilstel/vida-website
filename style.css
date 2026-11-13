@@ -149,10 +149,16 @@ main {
     display: none;
     margin-top: 200px;
 }
-#images figure img:hover ~ figcaption {
+#images figure img:hover ~ figcaption,
+#images figure.keep-open figcaption {
     display: flex;
 }
-#images figure figcaption p {
+#images figure figcaption a {
+    text-decoration: underline;
+    text-decoration-thickness: 0.5px;
+    text-underline-offset: 2px;
+}
+#images figure figcaption .caption {
     max-width: 300px;
 }
 
@@ -195,7 +201,7 @@ footer {
     #images figure figcaption, #images figure img:hover ~ figcaption {
         display: none !important;
     }
-    #images figure figcaption p {
+    #images figure figcaption .caption {
         max-width: 100%;
     }
     footer {
