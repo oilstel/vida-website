@@ -6,10 +6,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Content baked into the site by scripts/fetch-arena.mjs (run on a schedule
     // by GitHub Actions). If it can't be loaded, we fall back to the live API.
-    // Adding ?live to the address skips the baked file and loads straight from
-    // Are.na, to preview an edit before the next scheduled update.
-    const useLive = new URLSearchParams(window.location.search).has('live');
-    const bakedData = useLive ? Promise.resolve(null) : fetch('data/arena.json', { cache: 'no-cache' })
+    // Adding ?preview to the address skips the baked file and loads straight
+    // from Are.na, to preview an edit before the next scheduled update.
+    const usePreview = new URLSearchParams(window.location.search).has('preview');
+    const bakedData = usePreview ? Promise.resolve(null) : fetch('data/arena.json', { cache: 'no-cache' })
         .then(response => response.ok ? response.json() : null)
         .catch(() => null);
     
