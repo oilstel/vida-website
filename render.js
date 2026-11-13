@@ -23,9 +23,18 @@
             .replace(/"/g, '&quot;');
     }
 
+    // Are.na's editor sometimes escapes a link typed as [text](address), and
+    // renders it as literal brackets followed by the bare address:
+    //   [text] (<a href="address">address</a>)
+    // Turn that back into the link that was meant: <a href="address">text</a>
+    function repairLinks(html) {
+        return String(html || '').replace(/\[([^\[\]<>]+)\]\s*\(<a ([^>]*)>[^<]*<\/a>\)/g,
+            (match, text, attributes) => `<a ${attributes}>${text}</a>`);
+    }
+
     // Inner HTML for an element with data-block-id
     function renderBlock(block) {
-        const content = block.content_html || '';
+        const content = repairLinks(block.content_html);
 
         if (block.description && block.description.includes('display_as_html: true') &&
             content.includes('<pre><code>') && content.includes('</code></pre>')) {
@@ -65,7 +74,7 @@
             let caption = '';
             if (block.description_html) {
                 // Are.na's rendered markdown (italics, bold, links, paragraphs)
-                caption = `<div class="caption">${block.description_html}</div>`;
+                caption = `<div class="caption">${repairLinks(block.description_html)}</div>`;
             } else if (block.description) {
                 caption = `<p class="caption">${escapeHtml(block.description)}</p>`;
             }
