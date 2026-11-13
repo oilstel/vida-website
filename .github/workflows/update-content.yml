@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - template.html
+      - render.js
+      - scripts/**
+      - .github/workflows/update-content.yml
 
 permissions:
   contents: write
@@ -22,17 +29,17 @@ jobs:
         with:
           node-version: 22
 
-      - name: Fetch content from Are.na
-        run: node scripts/fetch-arena.mjs
+      - name: Build index.html from Are.na
+        run: node scripts/build.mjs
 
       - name: Commit if changed
         run: |
-          if [ -z "$(git status --porcelain data/arena.json)" ]; then
+          if [ -z "$(git status --porcelain index.html)" ]; then
             echo "No changes on Are.na."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/arena.json
+          git add index.html
           git commit -m "Update content from Are.na"
           git push

@@ -1,330 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const channelSlug = 'vida-website';
-    const apiBaseUrl = 'https://api.are.na/v2/';
-    const imagesContainer = document.getElementById('images');
-    const rightColumn = document.getElementById('right-column');
-    
-    // Content baked into the site by scripts/fetch-arena.mjs (run on a schedule
-    // by GitHub Actions). If it can't be loaded, we fall back to the live API.
-    // Adding ?preview to the address skips the baked file and loads straight
-    // from Are.na, to preview an edit before the next scheduled update.
-    const usePreview = new URLSearchParams(window.location.search).has('preview');
-    const bakedData = usePreview ? Promise.resolve(null) : fetch('data/arena.json', { cache: 'no-cache' })
-        .then(response => response.ok ? response.json() : null)
-        .catch(() => null);
-    
-    // Add loading indicator
-    function showLoading(element, message = 'Loading...') {
-        if (!element) return;
-        const loader = document.createElement('div');
-        loader.className = 'loading';
-        loader.innerHTML = `<p>${message}</p>`;
-        element.appendChild(loader);
-    }
-    
-    function removeLoading(element) {
-        if (!element) return;
-        const loader = element.querySelector('.loading');
-        if (loader) {
-            loader.remove();
-        }
-    }
-    
-    // Find all elements with data-block-id and populate them
-    async function populateBlockElements() {
-        const blockElements = document.querySelectorAll('[data-block-id]');
-        
-        for (const element of blockElements) {
-            const blockId = element.getAttribute('data-block-id');
-            if (blockId) {
-                showLoading(element, ``);
-                
-                try {
-                    const block = await getBlockById(blockId);
-                    if (block) {
-                        displayBlockContent(element, block);
-                    }
-                } catch (error) {
-                    console.error(`Error fetching block ${blockId}:`, error);
-                    element.innerHTML = `<p>Error loading block ${blockId}</p>`;
-                } finally {
-                    removeLoading(element);
-                }
-            }
-        }
-    }
-    
-    function displayBlockContent(element, block) {
-        // Keep the original tag name
-        const tagName = element.tagName.toLowerCase();
-        
-        // Clear existing content but preserve the data-block-id attribute
-        const blockId = element.getAttribute('data-block-id');
-        element.innerHTML = '';
-        
-        if (block.description && block.description.includes('display_as_html: true')) {
-            // Extract content from within <pre><code> tags if they exist
-            let content = block.content_html;
-            if (content.includes('<pre><code>') && content.includes('</code></pre>')) {
-                // Extract the content between <pre><code> and </code></pre>
-                const preContent = content.split('<pre><code>')[1].split('</code></pre>')[0];
-                
-                // Unescape HTML entities (convert &lt; to <, &gt; to >, etc.)
-                const unescapedContent = unescapeHtml(preContent);
-                
-                element.innerHTML = unescapedContent;
-            } else {
-                element.innerHTML = content;
-            }
-        } else {
-            element.innerHTML = unescapeHtml(block.content_html);
-        }
-    }
-    
-    // Helper function to unescape HTML entities
-    function unescapeHtml(html) {
-        const textarea = document.createElement('textarea');
-        textarea.innerHTML = html;
-        return textarea.value;
-    }
-    
-    async function fetchArenaChannel() {
-        if (!imagesContainer) return;
-        
-        showLoading(imagesContainer, '');
-        
-        try {
-            const baked = await bakedData;
-            
-            // Get channel information first
-            let channelData;
-            if (baked && baked.channel) {
-                channelData = baked.channel;
-            } else {
-                const channelResponse = await fetch(`${apiBaseUrl}channels/${channelSlug}`, {
-                    method: 'GET',
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
-                
-                if (!channelResponse.ok) {
-                    throw new Error(`Failed to fetch channel: ${channelResponse.status}`);
-                }
-                
-                channelData = await channelResponse.json();
-            }
-            
-            // Parse the description for CSS variables
-            if (channelData.metadata && channelData.metadata.description) {
-                const description = channelData.metadata.description;
-                
-                // Extract color values using regex
-                const bgColorMatch = description.match(/Background color:\s*(#[0-9A-Fa-f]+)/);
-                const bgColorLeft = description.match(/Background color in the left:\s*(#[0-9A-Fa-f]+)/);
-                const textColorMatch = description.match(/Text color:\s*(#[0-9A-Fa-f]+)/);
-                const linesColorMatch = description.match(/Lines color:\s*(#[0-9A-Fa-f]+)/);
-                
-                // Update CSS variables if matches found
-                if (bgColorMatch || bgColorLeft || textColorMatch || linesColorMatch) {
-                    const root = document.documentElement;
-                    
-                    if (bgColorMatch && bgColorMatch[1]) {
-                        root.style.setProperty('--bg-color', bgColorMatch[1]);
-                    }
-                    
-                    if (bgColorLeft && bgColorLeft[1]) {
-                        root.style.setProperty('--bg-color-left', bgColorLeft[1]);
-                    }
-                    
-                    if (textColorMatch && textColorMatch[1]) {
-                        root.style.setProperty('--text-color', textColorMatch[1]);
-                    }
-                    
-                    if (linesColorMatch && linesColorMatch[1]) {
-                        root.style.setProperty('--rule-color', linesColorMatch[1]);
-                    }
-                }
-            }
-            
-            if (baked && baked.images) {
-                displayImages(baked.images);
-                return;
-            }
-            
-            // Now fetch all blocks
-            let allBlocks = [];
-            let page = 1;
-            let hasMore = true;
-            
-            while (hasMore) {
-                const response = await fetch(`${apiBaseUrl}channels/${channelSlug}/contents?page=${page}&per=100&sort=position`, {
-                    method: 'GET',
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch content: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                if (data.contents && data.contents.length) {
-                    allBlocks = [...allBlocks, ...data.contents];
-                    page++;
-                    hasMore = data.contents.length === 100; // If we got the max per page, there might be more
-                } else {
-                    hasMore = false;
-                }
-            }
-            
-            // Filter for image blocks
-            const imageBlocks = allBlocks.filter(block => 
-                block.class === 'Image' || 
-                (block.class === 'Attachment' && block.attachment && 
-                 block.attachment.content_type && 
-                 block.attachment.content_type.startsWith('image/'))
-            );
-            
-            displayImages(imageBlocks);
-            
-        } catch (error) {
-            console.error('Error fetching Are.na channel:', error);
-            imagesContainer.innerHTML = '<p>Error loading content. Please try again later.</p>';
-        } finally {
-            removeLoading(imagesContainer);
-        }
-    }
-    
-    function displayImages(imageBlocks) {
-        if (!imagesContainer) return;
-        
-        if (imageBlocks.length === 0) {
-            imagesContainer.innerHTML = '<p>No images found in this channel.</p>';
-            return;
-        }
-        
-        imagesContainer.innerHTML = '';
-        
-        // Reverse the order of image blocks
-        const reversedBlocks = [...imageBlocks].reverse();
-        
-        reversedBlocks.forEach(block => {
-            const figure = document.createElement('figure');
-            figure.setAttribute('data-block-id', block.id);
-            
-            const img = document.createElement('img');
-            
-            // Handle different image sources based on block type
-            if (block.class === 'Image') {
-                img.src = block.image && block.image.original ? block.image.original.url : block.image.display.url;
-            } else if (block.class === 'Attachment' && block.attachment) {
-                img.src = block.attachment.url;
-            }
-            
-            img.alt = block.title || '';
-            
-            const figcaption = document.createElement('figcaption');
-            
-            if (block.description_html) {
-                // Are.na's rendered markdown (italics, bold, links, paragraphs)
-                const caption = document.createElement('div');
-                caption.className = 'caption';
-                caption.innerHTML = block.description_html;
-                figcaption.appendChild(caption);
-            } else if (block.description) {
-                const p = document.createElement('p');
-                p.className = 'caption';
-                p.textContent = block.description;
-                figcaption.appendChild(p);
-            }
-            
-            // Captions with links stay open briefly after leaving the image,
-            // so the pointer can travel across to the caption and click.
-            const links = figcaption.querySelectorAll('a');
-            if (links.length) {
-                links.forEach(link => {
-                    link.target = '_blank';
-                    link.rel = 'noopener';
-                });
-
-                let hideTimer;
-                const close = () => {
-                    clearTimeout(hideTimer);
-                    figure.classList.remove('keep-open');
-                };
-
-                img.addEventListener('mouseenter', () => {
-                    document.querySelectorAll('#images figure.keep-open').forEach(f => {
-                        if (f !== figure) f.classList.remove('keep-open');
-                    });
-                    clearTimeout(hideTimer);
-                    figure.classList.add('keep-open');
-                });
-                img.addEventListener('mouseleave', () => {
-                    clearTimeout(hideTimer);
-                    hideTimer = setTimeout(close, 2500);
-                });
-                figcaption.addEventListener('mouseenter', () => clearTimeout(hideTimer));
-                figcaption.addEventListener('mouseleave', close);
-            } else {
-                // Hovering a link-less image closes any caption left open
-                img.addEventListener('mouseenter', () => {
-                    document.querySelectorAll('#images figure.keep-open').forEach(f => {
-                        f.classList.remove('keep-open');
-                    });
-                });
-            }
-
-            figure.appendChild(img);
-            figure.appendChild(figcaption);
-            imagesContainer.appendChild(figure);
-        });
-    }
-    
-    // Helper function to get a specific block by ID
-    async function getBlockById(blockId) {
-        const baked = await bakedData;
-        if (baked && baked.blocks && baked.blocks[blockId]) {
-            return baked.blocks[blockId];
-        }
-        
-        try {
-            const response = await fetch(`${apiBaseUrl}blocks/${blockId}`, {
-                method: 'GET',
-                headers: { 'Cache-Control': 'no-cache' }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch block: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error(`Error fetching block ${blockId}:`, error);
-            return null;
-        }
-    }
-    
-    // Initialize
-    populateBlockElements();
-    fetchArenaChannel();
-    
-    // Set up bio toggle functionality
+    // The content is already in the page: scripts/build.mjs writes it into
+    // index.html from Are.na. This script only adds the interactive parts.
+    setupCaptions();
+    openLinksInNewTab();
     setupBioToggle();
-    
-    // Initialize with default favicon
     createDynamicFavicon();
-    
-    // Setup sticky header
     setupStickyHeader();
     
-    // Make all links open external
-    setTimeout(() => {
-        document.querySelectorAll('a').forEach(link => {
-            link.setAttribute('target', '_blank');
-        });
-    }, 1500); // Wait for content to load
-    
-    // Update favicon if CSS variables are changed later (e.g., from arena description)
+    // Update favicon if CSS variables are changed later (e.g., by ?preview)
     const observer = new MutationObserver(function() {
         createDynamicFavicon();
     });
@@ -334,33 +17,144 @@ document.addEventListener('DOMContentLoaded', function() {
         attributes: true,
         attributeFilter: ['style']
     });
+    
+    // Adding ?preview to the address reloads the content straight from Are.na,
+    // to check an edit before the next scheduled build.
+    if (new URLSearchParams(window.location.search).has('preview')) {
+        loadPreview();
+    }
 });
+
+// Make all links open in a new tab
+function openLinksInNewTab() {
+    document.querySelectorAll('a').forEach(link => {
+        link.setAttribute('target', '_blank');
+        if (!link.getAttribute('rel')) link.setAttribute('rel', 'noopener');
+    });
+}
+
+// Captions show while hovering an image (see style.css). Captions with links
+// also stay open briefly after leaving the image, so the pointer can travel
+// across to the caption and click.
+function setupCaptions() {
+    const figures = document.querySelectorAll('#images figure');
+    const closeOthers = current => {
+        document.querySelectorAll('#images figure.keep-open').forEach(figure => {
+            if (figure !== current) figure.classList.remove('keep-open');
+        });
+    };
+    
+    figures.forEach(figure => {
+        const img = figure.querySelector('img');
+        const figcaption = figure.querySelector('figcaption');
+        if (!img || !figcaption) return;
+        
+        if (!figcaption.querySelector('a')) {
+            // Hovering a link-less image closes any caption left open
+            img.addEventListener('mouseenter', () => closeOthers(null));
+            return;
+        }
+        
+        let hideTimer;
+        const close = () => {
+            clearTimeout(hideTimer);
+            figure.classList.remove('keep-open');
+        };
+        
+        img.addEventListener('mouseenter', () => {
+            closeOthers(figure);
+            clearTimeout(hideTimer);
+            figure.classList.add('keep-open');
+        });
+        img.addEventListener('mouseleave', () => {
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(close, 2500);
+        });
+        figcaption.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+        figcaption.addEventListener('mouseleave', close);
+    });
+}
+
+// ?preview: replace the built content with the current content on Are.na.
+// If anything fails, the built content simply stays in place.
+async function loadPreview() {
+    const channelSlug = 'vida-website';
+    const apiBaseUrl = 'https://api.are.na/v2/';
+    
+    async function getJson(url) {
+        const response = await fetch(apiBaseUrl + url, { headers: { 'Cache-Control': 'no-cache' } });
+        if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`);
+        return response.json();
+    }
+    
+    try {
+        // render.js is only needed here, so it's loaded on demand
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'render.js?t=' + Date.now();
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('Failed to load render.js'));
+            document.head.appendChild(script);
+        });
+        const { renderBlock, renderImages, parseColors } = window.ArenaRender;
+        
+        // Colours from the channel description
+        const channel = await getJson(`channels/${channelSlug}`);
+        const colors = parseColors(channel.metadata && channel.metadata.description);
+        for (const [variable, value] of Object.entries(colors)) {
+            document.documentElement.style.setProperty(variable, value);
+        }
+        
+        // Images
+        let contents = [];
+        for (let page = 1; ; page++) {
+            const data = await getJson(`channels/${channelSlug}/contents?page=${page}&per=100&sort=position`);
+            const pageContents = data.contents || [];
+            contents = contents.concat(pageContents);
+            if (pageContents.length < 100) break;
+        }
+        const imagesContainer = document.getElementById('images');
+        if (imagesContainer) {
+            imagesContainer.innerHTML = renderImages(contents);
+            setupCaptions();
+        }
+        
+        // Text blocks (the figures inside #images also carry data-block-id)
+        const blockElements = [...document.querySelectorAll('[data-block-id]')]
+            .filter(element => !element.closest('#images'));
+        await Promise.all(blockElements.map(async element => {
+            const block = await getJson(`blocks/${element.getAttribute('data-block-id')}`);
+            element.innerHTML = renderBlock(block);
+        }));
+        
+        openLinksInNewTab();
+    } catch (error) {
+        console.error('Preview failed, showing the built content instead:', error);
+    }
+}
 
 // Toggle bio functionality
 function setupBioToggle() {
-    // We need to wait a bit for the content to be loaded from Are.na
-    setTimeout(() => {
-        const toggleButton = document.getElementById('toggle-expanded-bio');
-        const expandedBio = document.getElementById('expanded-bio');
+    const toggleButton = document.getElementById('toggle-expanded-bio');
+    const expandedBio = document.getElementById('expanded-bio');
+    
+    if (toggleButton && expandedBio) {
+        // Initially hide the expanded bio
+        expandedBio.style.display = 'none';
         
-        if (toggleButton && expandedBio) {
-            // Initially hide the expanded bio
-            expandedBio.style.display = 'none';
-            
-            // Add click event to toggle button
-            toggleButton.addEventListener('click', function() {
-                if (expandedBio.style.display === 'none') {
-                    // Expand
-                    expandedBio.style.display = 'block';
-                    toggleButton.textContent = '−'; // Em dash for minus
-                } else {
-                    // Collapse
-                    expandedBio.style.display = 'none';
-                    toggleButton.textContent = '+';
-                }
-            });
-        }
-    }, 1000); // Wait 1 second for content to load
+        // Add click event to toggle button
+        toggleButton.addEventListener('click', function() {
+            if (expandedBio.style.display === 'none') {
+                // Expand
+                expandedBio.style.display = 'block';
+                toggleButton.textContent = '−'; // Em dash for minus
+            } else {
+                // Collapse
+                expandedBio.style.display = 'none';
+                toggleButton.textContent = '+';
+            }
+        });
+    }
 }
 
 // Favicon
