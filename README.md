@@ -16,7 +16,7 @@ Everything is edited on Are.na. Nothing in this repository needs to change.
 | Image captions | Each image's description |
 | Colours | The channel's description |
 
-**Images** appear in the channel's order, most recently added first. The caption shows when hovering an image on desktop; captions are hidden on mobile.
+**Images** appear in the same order as on the channel page. Reorder them on Are.na to reorder them on the site. The caption shows when hovering an image on desktop; captions are hidden on mobile.
 
 **Captions** accept Are.na's markdown: `*italic*`, `**bold**`, `[a link](https://…)`, and blank lines for paragraphs. A caption with a link stays open for a couple of seconds after the pointer leaves the image, so the link can be reached.
 
