@@ -35,21 +35,22 @@ Lines color: #140CFB
 
 An edit on Are.na shows up on the site within about 15–20 minutes.
 
-To check an edit straight away, open [vidarucli.com/?preview](https://vidarucli.com/?preview). That visit loads the content directly from Are.na. Only the person viewing sees it; everyone else gets the change at the next update.
+To check an edit straight away, open [vidarucli.com/?preview](https://vidarucli.com/?preview). That visit loads the content directly from Are.na, and the browser tab's title changes to "Vida Rucli (preview)" once it has. Only the person viewing sees it; everyone else gets the change at the next update.
 
 ## How it works
 
-The site is plain HTML with the content already in it. A scheduled job fetches the content from Are.na, writes it into the page, and commits the result. Visitors never wait on Are.na, and the page stays up if Are.na is down.
+The site is plain HTML with the content already in it. A scheduled job fetches the content from Are.na, writes it into the page, copies the images into the site, and commits the result. Visitors never contact Are.na, so the site stays up if Are.na is down.
 
 | File | Role |
 | --- | --- |
 | `template.html` | The page's markup, with empty elements where content goes. An element is filled from a text block through `data-block-id="…"`; `#images` is filled with the image scroll. |
 | `index.html` | **Generated.** The template with the content filled in. Don't edit it by hand. |
-| `scripts/build.mjs` | Fetches the content from Are.na and writes `index.html`. |
+| `images/` | **Generated.** Copies of the channel's images, at most 1800px on the longest side. |
+| `scripts/build.mjs` | Fetches the content from Are.na, writes `index.html` and keeps `images/` in step with the channel. |
 | `render.js` | Turns Are.na data into HTML. Used by both the build and `?preview`, so they produce the same markup. |
 | `script.js` | The interactive parts only: captions, bio toggle, sticky header, favicon, and `?preview`. |
 | `style.css` | Styles. |
-| `.github/workflows/update-content.yml` | Runs the build and commits `index.html` when it changed. |
+| `.github/workflows/update-content.yml` | Runs the build and commits `index.html` and `images/` when they changed. |
 
 The workflow runs:
 
@@ -57,13 +58,15 @@ The workflow runs:
 - when `template.html`, `render.js`, `scripts/` or the workflow itself is pushed,
 - by hand, from the Actions tab ("Update content from Are.na" → "Run workflow"), to update immediately.
 
-The site is hosted on GitHub Pages from the `main` branch, so each commit to `index.html` publishes about a minute later. No API key is needed, because the channel is public.
+The site is hosted on GitHub Pages from the `main` branch, so each commit publishes about a minute later. No API key is needed, because the channel is public.
 
 ### If Are.na is unavailable
 
-If the build can't reach Are.na, or gets back no images or an empty text block, it fails without touching `index.html`, and the last good version stays live. GitHub emails the repository owner about the failed run.
+If the build can't reach Are.na, gets back no images or an empty text block, or can't download an image, it fails without touching `index.html`, and the last good version stays live. GitHub emails the repository owner about the failed run.
 
-The image files themselves are still served by Are.na, so they would not load during an outage of Are.na's image servers. The text and layout would.
+### Images
+
+The build downloads Are.na's "large" version of each image (the originals can be several MB each) into `images/`, named `<block id>-<version>.<extension>`. An image that is already there is not downloaded again, and one that has left the channel is deleted, so the folder only ever holds what the page uses. Git history still keeps deleted images, at roughly 0.1–0.3 MB each.
 
 ## Development
 
@@ -78,7 +81,7 @@ python3 -m http.server 8000   # view at http://localhost:8000
 - Change markup in `template.html`, then rebuild. Pushing the template also triggers a rebuild on GitHub.
 - To add a text block, add an empty element with its `data-block-id` to `template.html`. The build fails if such an element isn't empty.
 - After changing `style.css` or `script.js`, bump their `?v=` numbers in `template.html` so browsers pick up the new files.
-- If `git pull` reports a conflict in `index.html`, keep either side and run the build again.
+- If `git pull` reports a conflict in `index.html` or `images/`, keep either side and run the build again.
 
 ### Things to know
 

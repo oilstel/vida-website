@@ -82,7 +82,8 @@ async function loadPreview() {
     const apiBaseUrl = 'https://api.are.na/v2/';
     
     async function getJson(url) {
-        const response = await fetch(apiBaseUrl + url, { headers: { 'Cache-Control': 'no-cache' } });
+        // no-store: Are.na lets browsers cache the channel info for a week
+        const response = await fetch(apiBaseUrl + url, { cache: 'no-store' });
         if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`);
         return response.json();
     }
@@ -128,6 +129,9 @@ async function loadPreview() {
         }));
         
         openLinksInNewTab();
+        
+        // The only visible sign that this is the preview
+        document.title += ' (preview)';
     } catch (error) {
         console.error('Preview failed, showing the built content instead:', error);
     }

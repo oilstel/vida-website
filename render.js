@@ -47,7 +47,9 @@
 
     function imageUrl(block) {
         if (block.class === 'Image' && block.image) {
-            return block.image.original ? block.image.original.url : block.image.display.url;
+            // "large" is at most 1800px on its longest side; originals can be several MB
+            const size = block.image.large || block.image.original || block.image.display;
+            return size ? size.url : '';
         }
         if (block.class === 'Attachment' && block.attachment) {
             return block.attachment.url;
@@ -55,8 +57,10 @@
         return '';
     }
 
-    // Inner HTML for #images, from the channel's contents (in position order)
-    function renderImages(contents) {
+    // Inner HTML for #images, from the channel's contents (in position order).
+    // srcFor(block) can supply a different image address (the build uses it to
+    // point at its downloaded copies); by default images load from Are.na.
+    function renderImages(contents, srcFor) {
         return contents.filter(isImageBlock).reverse().map(block => {
             let caption = '';
             if (block.description_html) {
@@ -66,7 +70,7 @@
                 caption = `<p class="caption">${escapeHtml(block.description)}</p>`;
             }
             return `<figure data-block-id="${escapeHtml(block.id)}">` +
-                `<img src="${escapeHtml(imageUrl(block))}" alt="${escapeHtml(block.title)}">` +
+                `<img src="${escapeHtml(srcFor ? srcFor(block) : imageUrl(block))}" alt="${escapeHtml(block.title)}">` +
                 `<figcaption>${caption}</figcaption>` +
                 `</figure>`;
         }).join('\n');
@@ -88,5 +92,5 @@
         return colors;
     }
 
-    root.ArenaRender = { renderBlock, renderImages, parseColors, isImageBlock };
+    root.ArenaRender = { renderBlock, renderImages, parseColors, isImageBlock, imageUrl };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
