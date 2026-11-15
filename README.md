@@ -45,12 +45,13 @@ The site is plain HTML with the content already in it. A scheduled job fetches t
 | --- | --- |
 | `template.html` | The page's markup, with empty elements where content goes. An element is filled from a text block through `data-block-id="…"`; `#images` is filled with the image scroll. |
 | `index.html` | **Generated.** The template with the content filled in. Don't edit it by hand. |
+| `favicon.svg` | **Generated.** A square in the left-hand background colour. |
 | `images/` | **Generated.** Copies of the channel's images, at most 1800px on the longest side. |
-| `scripts/build.mjs` | Fetches the content from Are.na, writes `index.html` and keeps `images/` in step with the channel. |
+| `scripts/build.mjs` | Fetches the content from Are.na, writes `index.html` and `favicon.svg`, and keeps `images/` in step with the channel. |
 | `render.js` | Turns Are.na data into HTML. Used by both the build and `?preview`, so they produce the same markup. |
 | `script.js` | The interactive parts only: captions, bio toggle, sticky header, favicon, and `?preview`. |
 | `style.css` | Styles. |
-| `.github/workflows/update-content.yml` | Runs the build and commits `index.html` and `images/` when they changed. |
+| `.github/workflows/update-content.yml` | Runs the build and commits `index.html`, `favicon.svg` and `images/` when they changed. |
 
 The workflow runs:
 

@@ -120,6 +120,13 @@ if (declarations) {
     html = html.replace('</head>', () => `    <style id="arena-colors">:root { ${declarations} }</style>\n</head>`);
 }
 
+// Favicon: a square in the left-hand background colour. It is a real file,
+// linked from template.html, because search engines ignore an icon that only
+// exists once the page's script has run.
+const faviconColor = colors['--bg-color-left'] || '#053627'; // style.css default
+await writeFile(path.join(root, 'favicon.svg'),
+    `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" fill="${faviconColor}"/></svg>\n`);
+
 // Mark the file as generated
 html = html.replace(/<!DOCTYPE html>/i, match =>
     `${match}\n<!-- Generated from template.html by scripts/build.mjs. Edit template.html, not this file. -->`);

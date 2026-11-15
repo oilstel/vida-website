@@ -5,10 +5,10 @@ document.addEventListener('DOMContentLoaded', function() {
     openLinksInNewTab();
     setupBioToggle();
     setupBioScroll();
-    createDynamicFavicon();
     setupStickyHeader();
     
-    // Update favicon if CSS variables are changed later (e.g., by ?preview)
+    // The favicon is a file written by the build (favicon.svg). It is only
+    // redrawn here if the colours are changed later, which ?preview does.
     const observer = new MutationObserver(function() {
         createDynamicFavicon();
     });
@@ -271,7 +271,7 @@ function setupBioScroll() {
     }, { passive: true });
 }
 
-// Favicon
+// Favicon, redrawn in the current left-hand background colour
 function createDynamicFavicon() {
     // Get the --bg-color-left value from CSS
     const bgColorLeft = getComputedStyle(document.documentElement).getPropertyValue('--bg-color-left').trim();

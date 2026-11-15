@@ -34,12 +34,12 @@ jobs:
 
       - name: Commit if changed
         run: |
-          if [ -z "$(git status --porcelain index.html images)" ]; then
+          if [ -z "$(git status --porcelain index.html images favicon.svg)" ]; then
             echo "No changes on Are.na."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A index.html images
+          git add -A index.html images favicon.svg
           git commit -m "Update content from Are.na"
           git push
