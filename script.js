@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupCaptions();
     openLinksInNewTab();
     setupBioToggle();
+    setupBioScroll();
     createDynamicFavicon();
     setupStickyHeader();
     
@@ -161,6 +162,29 @@ function setupBioToggle() {
     }
 }
 
+// A long expanded bio scrolls inside itself (see style.css). Browsers hold a
+// wheel or trackpad gesture on the element it started on, so the page would
+// stay put once the bio reaches its end. Hand the rest of the gesture to the
+// page instead. Touch needs no help: the next swipe moves the page.
+function setupBioScroll() {
+    const bio = document.getElementById('bio-container');
+    if (!bio) return;
+    
+    bio.addEventListener('wheel', function(event) {
+        if (event.ctrlKey || !event.deltaY) return; // pinch-zoom, sideways
+        
+        const max = bio.scrollHeight - bio.clientHeight;
+        if (max <= 0) return; // nothing to scroll: the page scrolls as usual
+        
+        const atEnd = event.deltaY > 0 ? bio.scrollTop >= max - 1 : bio.scrollTop <= 0;
+        if (!atEnd) return;
+        
+        event.preventDefault();
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+        window.scrollBy(0, event.deltaY * unit);
+    }, { passive: false });
+}
+
 // Favicon
 function createDynamicFavicon() {
     // Get the --bg-color-left value from CSS
@@ -201,6 +225,13 @@ function setupStickyHeader() {
     // Store original parent
     const originalParent = bioContainer.parentNode;
     
+    // Moving an element resets how far it is scrolled, so put that back
+    function moveBio(parent) {
+        const scrollTop = bioContainer.scrollTop;
+        parent.appendChild(bioContainer);
+        bioContainer.scrollTop = scrollTop;
+    }
+    
     // Track the scroll position where we should switch
     let switchPoint = 0;
     
@@ -239,12 +270,12 @@ function setupStickyHeader() {
         if (scrollY >= switchPoint) {
             // Only move if it's not already in the fixed header
             if (bioContainer.parentNode !== fixedHeader) {
-                fixedHeader.appendChild(bioContainer);
+                moveBio(fixedHeader);
             }
         } else {
             // Only move if it's not already in the original parent
             if (bioContainer.parentNode !== originalParent) {
-                originalParent.appendChild(bioContainer);
+                moveBio(originalParent);
                 
                 // Recalculate after putting back in original position
                 setTimeout(calculateSwitchPoint, 10);
@@ -267,7 +298,7 @@ function setupStickyHeader() {
     
     // Do initial check
     if (window.scrollY >= switchPoint) {
-        fixedHeader.appendChild(bioContainer);
+        moveBio(fixedHeader);
     }
 }
 
