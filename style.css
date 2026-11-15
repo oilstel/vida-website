@@ -71,6 +71,17 @@ header.fixed-header {
 }
 #bio-container {
     width: 60%;
+    /* A long expanded bio scrolls inside itself instead of running off the
+       top of the screen. 30px is the header's top and bottom padding. */
+    max-height: calc(95dvh - 30px);
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+#bio-container::-webkit-scrollbar {
+    display: none;
+}
+#fixed-header #bio-container {
+    max-height: calc(100dvh - 30px);
 }
 #bio-container button {
     display: inline-block;
