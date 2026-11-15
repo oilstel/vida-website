@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import '../render.js'; // defines globalThis.ArenaRender
 
-const { renderBlock, renderImages, parseColors, isImageBlock, imageUrl } = globalThis.ArenaRender;
+const { decodeEntities, escapeHtml, renderBlock, renderImages, parseColors, isImageBlock, imageUrl } = globalThis.ArenaRender;
 
 const channelSlug = 'vida-website';
 const apiBaseUrl = 'https://api.are.na/v2/';
@@ -57,6 +57,7 @@ await mkdir(imagesDir, { recursive: true });
 const existingFiles = await readdir(imagesDir);
 const extensions = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/avif': 'avif', 'image/svg+xml': 'svg' };
 const localFiles = {};
+const baseNames = {};
 
 for (const block of contents.filter(isImageBlock)) {
     const url = imageUrl(block);
@@ -67,6 +68,7 @@ for (const block of contents.filter(isImageBlock)) {
     const hashInName = original.match(/original_([0-9a-f]{8,})\./);
     const version = (hashInName ? hashInName[1] : createHash('sha1').update(url).digest('hex')).slice(0, 10);
     const base = `${block.id}-${version}`;
+    baseNames[block.id] = base;
     
     let file = existingFiles.find(name => name.startsWith(base + '.'));
     if (!file) {
@@ -82,6 +84,33 @@ for (const block of contents.filter(isImageBlock)) {
         console.log(`Downloaded images/${file} (${Math.round(bytes.length / 1024)} KB)`);
     }
     localFiles[block.id] = file;
+}
+
+// Link preview image (what shows when the address is shared in a message or
+// on social media): the first image on the page. Kept as a JPEG at Are.na's
+// "display" size (at most 1200px), because not every service accepts WebP.
+// If that copy can't be made, the page's own copy of the image is used.
+const firstImage = contents.filter(isImageBlock).reverse()[0];
+let socialFile = localFiles[firstImage.id];
+if (firstImage.class === 'Image' && firstImage.image && firstImage.image.display) {
+    const name = `social-${baseNames[firstImage.id]}.jpg`;
+    if (existingFiles.includes(name)) {
+        socialFile = name;
+    } else {
+        try {
+            const response = await fetch(firstImage.image.display.url, { headers: { Accept: 'image/jpeg' } });
+            const type = (response.headers.get('content-type') || '').split(';')[0].trim();
+            const bytes = Buffer.from(await response.arrayBuffer());
+            if (!response.ok || type !== 'image/jpeg' || bytes.length === 0) {
+                throw new Error(`got ${response.status} "${type}" (${bytes.length} bytes)`);
+            }
+            await writeFile(path.join(imagesDir, name), bytes);
+            console.log(`Downloaded images/${name} (${Math.round(bytes.length / 1024)} KB)`);
+            socialFile = name;
+        } catch (error) {
+            console.warn(`No JPEG for the link preview (${error.message}); using images/${socialFile}`);
+        }
+    }
 }
 
 // Text blocks: fill every empty element that has a data-block-id
@@ -120,6 +149,28 @@ if (declarations) {
     html = html.replace('</head>', () => `    <style id="arena-colors">:root { ${declarations} }</style>\n</head>`);
 }
 
+// Description and link preview. The description is the short bio as plain
+// text; if that can't be found, the one written in template.html stays.
+const shortBioId = (html.match(/id="mini-bio"[^>]*data-block-id="(\d+)"/) || [])[1];
+const description = shortBioId
+    ? decodeEntities(renderBlock(blocks[shortBioId]).replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim()
+    : '';
+if (description) {
+    html = html.replace(/(<meta name="description" content=")[^"]*(">)/, (match, open, close) => open + escapeHtml(description) + close);
+}
+const siteUrl = `https://${(await readFile(path.join(root, 'CNAME'), 'utf8')).trim()}/`;
+const pageTitle = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
+const pageDescription = (html.match(/<meta name="description" content="([^"]*)">/) || [])[1] || '';
+const socialTags = [
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:url" content="${siteUrl}">`,
+    `<meta property="og:title" content="${pageTitle}">`,
+    `<meta property="og:description" content="${pageDescription}">`,
+    `<meta property="og:image" content="${siteUrl}images/${socialFile}">`,
+    `<meta name="twitter:card" content="summary_large_image">`
+];
+html = html.replace('</head>', () => socialTags.map(tag => `    ${tag}\n`).join('') + '</head>');
+
 // Favicon: a square in the left-hand background colour. It is a real file,
 // linked from template.html, because search engines ignore an icon that only
 // exists once the page's script has run.
@@ -134,7 +185,7 @@ html = html.replace(/<!DOCTYPE html>/i, match =>
 await writeFile(path.join(root, 'index.html'), html);
 
 // Remove copies of images that are no longer in the channel
-const inUse = new Set(Object.values(localFiles));
+const inUse = new Set([...Object.values(localFiles), socialFile]);
 for (const name of existingFiles) {
     if (!inUse.has(name)) {
         await unlink(path.join(imagesDir, name));

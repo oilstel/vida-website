@@ -101,5 +101,5 @@
         return colors;
     }
 
-    root.ArenaRender = { renderBlock, renderImages, parseColors, isImageBlock, imageUrl };
+    root.ArenaRender = { decodeEntities, escapeHtml, renderBlock, renderImages, parseColors, isImageBlock, imageUrl };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -15,8 +15,12 @@ Everything is edited on Are.na. Nothing in this repository needs to change.
 | Image scroll | Every image in the channel |
 | Image captions | Each image's description |
 | Colours | The channel's description |
+| Description (search results and link previews) | The short bio |
+| Link preview image | The first image in the channel |
 
 **Images** appear in the same order as on the channel page. Reorder them on Are.na to reorder them on the site. The caption shows when hovering an image on desktop; captions are hidden on mobile.
+
+**Link previews** are what messaging apps and social media show when the site's address is shared: the title, the short bio and the first image on the page. Those services keep their own copy for a while, so a change can take days to show there.
 
 **Captions** accept Are.na's markdown: `*italic*`, `**bold**`, `[a link](https://…)`, and blank lines for paragraphs. A caption with a link stays open for a couple of seconds after the pointer leaves the image, so the link can be reached.
 
