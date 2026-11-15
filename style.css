@@ -70,14 +70,23 @@ header.fixed-header {
     padding-bottom: 15px;
 }
 #bio-container {
-    width: 60%;
+    /* 60% of the header, plus the header's left padding, which is taken over
+       here (as with the vertical padding below) so that the toggle's enlarged
+       hit area is not clipped on the left. */
+    width: calc(60% + 15px);
+    margin-left: -15px;
     /* A long expanded bio scrolls inside itself instead of running off the
        top of the screen. The vertical padding is here rather than on the
        header, so the text scrolls right up to the top and bottom edges. */
     max-height: 95dvh;
-    padding: 15px 0;
+    padding: 15px 0 15px 15px;
     overflow-y: auto;
     scrollbar-width: none;
+}
+/* Set by script.js while the bio is too long to fit. No bounce at the ends:
+   script.js scrolls the page from there instead. */
+#bio-container.overflowing {
+    overscroll-behavior: none;
 }
 #bio-container::-webkit-scrollbar {
     display: none;
@@ -95,7 +104,10 @@ header.fixed-header {
     font-weight: 400;
     color: var(--text-color);
     text-decoration: none;
-    padding: 0;
+    /* A hit area larger than the glyph, without moving anything */
+    padding: 14px 20px 14px 15px;
+    margin: -14px -20px -14px -15px;
+    touch-action: manipulation;
 }
 #header-color-container {
     grid-column: 1 / 2;

@@ -158,31 +158,117 @@ function setupBioToggle() {
                 expandedBio.style.display = 'none';
                 toggleButton.textContent = '+';
             }
+            document.dispatchEvent(new Event('bio-toggled'));
         });
     }
 }
 
 // A long expanded bio scrolls inside itself (see style.css). Browsers hold a
-// wheel or trackpad gesture on the element it started on, so the page would
-// stay put once the bio reaches its end. Hand the rest of the gesture to the
-// page instead. Touch needs no help: the next swipe moves the page.
+// scroll gesture on the element it started on, so on its own the bio would
+// stop (and on iOS bounce) at its end while the page stayed put. The bounce is
+// switched off in style.css; this hands the rest of the gesture, and whatever
+// momentum is left, to the page.
 function setupBioScroll() {
     const bio = document.getElementById('bio-container');
     if (!bio) return;
     
+    const maxScroll = () => bio.scrollHeight - bio.clientHeight;
+    
+    // style.css switches off the bounce only while there is something to scroll
+    const markOverflowing = () => bio.classList.toggle('overflowing', maxScroll() > 0);
+    new ResizeObserver(markOverflowing).observe(bio);
+    document.addEventListener('bio-toggled', markOverflowing);
+    markOverflowing();
+    // Is the bio unable to scroll any further in this direction?
+    const atEnd = direction => direction > 0 ? bio.scrollTop >= maxScroll() - 1 : bio.scrollTop <= 0;
+    
+    // Mouse wheel and trackpad
     bio.addEventListener('wheel', function(event) {
         if (event.ctrlKey || !event.deltaY) return; // pinch-zoom, sideways
-        
-        const max = bio.scrollHeight - bio.clientHeight;
-        if (max <= 0) return; // nothing to scroll: the page scrolls as usual
-        
-        const atEnd = event.deltaY > 0 ? bio.scrollTop >= max - 1 : bio.scrollTop <= 0;
-        if (!atEnd) return;
+        if (maxScroll() <= 0) return; // nothing to scroll: the page scrolls as usual
+        if (!atEnd(event.deltaY)) return;
         
         event.preventDefault();
         const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
         window.scrollBy(0, event.deltaY * unit);
     }, { passive: false });
+    
+    // Touch
+    let touching = false;
+    let lastY = 0;
+    let lastTime = 0;
+    let velocity = 0; // px per ms, positive = towards the bottom of the page
+    let glideFrame = null;
+    
+    function stopGlide() {
+        if (glideFrame) cancelAnimationFrame(glideFrame);
+        glideFrame = null;
+    }
+    
+    // Let the page coast to a stop, the way a flick normally does
+    function glide() {
+        stopGlide();
+        if (Math.abs(velocity) < 0.1) return;
+        let previous = performance.now();
+        const step = now => {
+            const elapsed = Math.min(now - previous, 50);
+            previous = now;
+            const before = window.scrollY;
+            window.scrollBy(0, velocity * elapsed);
+            velocity *= Math.pow(0.998, elapsed);
+            const stuck = window.scrollY === before; // top or bottom of the page
+            glideFrame = Math.abs(velocity) < 0.02 || stuck ? null : requestAnimationFrame(step);
+        };
+        glideFrame = requestAnimationFrame(step);
+    }
+    
+    // Any new touch, anywhere, stops the coasting
+    document.addEventListener('touchstart', stopGlide, { passive: true });
+    
+    bio.addEventListener('touchstart', function(event) {
+        touching = true;
+        velocity = 0;
+        lastY = event.touches[0].clientY;
+        lastTime = event.timeStamp;
+    }, { passive: true });
+    
+    bio.addEventListener('touchmove', function(event) {
+        if (event.touches.length !== 1) return;
+        const y = event.touches[0].clientY;
+        const delta = lastY - y;
+        const elapsed = Math.max(event.timeStamp - lastTime, 1);
+        lastY = y;
+        lastTime = event.timeStamp;
+        velocity = 0.7 * (delta / elapsed) + 0.3 * velocity;
+        
+        // A bio too short to scroll leaves the page to the browser
+        if (delta && maxScroll() > 0 && atEnd(delta)) window.scrollBy(0, delta);
+    }, { passive: true });
+    
+    const endTouch = function(event) {
+        if (event.touches.length) return;
+        touching = false;
+        // A finger that rested before lifting is not a flick
+        if (event.timeStamp - lastTime > 80) velocity = 0;
+        if (maxScroll() > 0 && atEnd(velocity)) glide();
+    };
+    bio.addEventListener('touchend', endTouch, { passive: true });
+    bio.addEventListener('touchcancel', endTouch, { passive: true });
+    
+    // A flick that is still carrying the bio when it reaches its end carries
+    // on into the page
+    let lastScrollTop = bio.scrollTop;
+    let lastScrollTime = 0;
+    bio.addEventListener('scroll', function(event) {
+        const delta = bio.scrollTop - lastScrollTop;
+        const elapsed = event.timeStamp - lastScrollTime;
+        lastScrollTop = bio.scrollTop;
+        lastScrollTime = event.timeStamp;
+        if (touching || !delta || elapsed <= 0 || elapsed > 100) return;
+        
+        velocity = delta / elapsed;
+        if (atEnd(delta)) glide();
+    }, { passive: true });
 }
 
 // Favicon
@@ -212,94 +298,52 @@ function createDynamicFavicon() {
     favicon.href = faviconUrl;
 }
 
-// Simplified sticky header implementation
+// The bio starts at the bottom of the header and scrolls up with the page.
+// Once its top reaches the top of the screen it is moved into #fixed-header,
+// which holds it there while the rest of the page scrolls underneath.
 function setupStickyHeader() {
-    // Get the necessary elements
+    const header = document.querySelector('header');
     const bioContainer = document.getElementById('bio-container');
     const fixedHeader = document.getElementById('fixed-header');
     const headerColorContainer = document.getElementById('header-color-container');
     
-    // Exit if elements don't exist
-    if (!bioContainer || !fixedHeader || !headerColorContainer) return;
+    if (!header || !bioContainer || !fixedHeader || !headerColorContainer) return;
     
-    // Store original parent
-    const originalParent = bioContainer.parentNode;
+    // Match fixed header width to header-color-container
+    function updateFixedHeaderWidth() {
+        fixedHeader.style.width = getComputedStyle(headerColorContainer).width;
+    }
     
     // Moving an element resets how far it is scrolled, so put that back
     function moveBio(parent) {
+        if (bioContainer.parentNode === parent) return;
         const scrollTop = bioContainer.scrollTop;
         parent.appendChild(bioContainer);
         bioContainer.scrollTop = scrollTop;
     }
     
-    // Track the scroll position where we should switch
-    let switchPoint = 0;
-    
-    // Match fixed header width to header-color-container
-    function updateFixedHeaderWidth() {
-        const containerWidth = getComputedStyle(headerColorContainer).width;
-        fixedHeader.style.width = containerWidth;
+    // How far the page has to scroll for the bio's top to reach the top of
+    // the screen. Worked out from the header each time, because the bio
+    // changes height when it is expanded: an expanded bio that fills the
+    // header is at the top already, and stays put from the first scroll.
+    function switchPoint() {
+        const headerTop = header.getBoundingClientRect().top + window.scrollY;
+        return headerTop + Math.max(0, header.clientHeight - bioContainer.offsetHeight);
     }
     
-    // More accurately calculate the switch point
-    function calculateSwitchPoint() {
-        // Only if bio is in original position
-        if (bioContainer.parentNode === originalParent) {
-            // Get actual position from top of document
-            let element = bioContainer;
-            let top = 0;
-            
-            do {
-                top += element.offsetTop || 0;
-                element = element.offsetParent;
-            } while (element);
-            
-            switchPoint = top;
-        }
+    function update() {
+        const scrollY = window.scrollY;
+        moveBio(scrollY > 0 && scrollY >= switchPoint() ? fixedHeader : header);
     }
     
-    // Initialize
-    calculateSwitchPoint();
-    updateFixedHeaderWidth();
-    
-    // Simple scroll handler with more precise comparison
-    window.addEventListener('scroll', function() {
-        const scrollY = window.scrollY || window.pageYOffset;
-        
-        // Use the absolute comparison - when bio should be at top of view
-        if (scrollY >= switchPoint) {
-            // Only move if it's not already in the fixed header
-            if (bioContainer.parentNode !== fixedHeader) {
-                moveBio(fixedHeader);
-            }
-        } else {
-            // Only move if it's not already in the original parent
-            if (bioContainer.parentNode !== originalParent) {
-                moveBio(originalParent);
-                
-                // Recalculate after putting back in original position
-                setTimeout(calculateSwitchPoint, 10);
-            }
-        }
-    });
-    
-    // Update width and recalculate switch point when window is resized
+    window.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', function() {
         updateFixedHeaderWidth();
-        
-        // Reset to original position to get accurate measurements
-        if (bioContainer.parentNode !== originalParent) {
-            originalParent.appendChild(bioContainer);
-        }
-        
-        // Allow DOM to update before measuring
-        setTimeout(calculateSwitchPoint, 100);
+        update();
     });
+    // The bio toggle changes the bio's height
+    document.addEventListener('bio-toggled', update);
     
-    // Do initial check
-    if (window.scrollY >= switchPoint) {
-        moveBio(fixedHeader);
-    }
+    updateFixedHeaderWidth();
+    update();
 }
-
- 
